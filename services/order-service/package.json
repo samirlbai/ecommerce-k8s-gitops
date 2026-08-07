@@ -1,0 +1,26 @@
+{
+    "name": "order-service",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "start": "node src/app.js",
+        "dev": "nodemon src/app.js",
+        "test": "NODE_ENV=test NODE_OPTIONS='--experimental-vm-modules' jest --detectOpenHandles --forceExit --coverage --testTimeout=90000"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.0.0",
+        "express": "^4.18.2",
+        "jsonwebtoken": "^9.0.2",
+        "mongoose": "^7.0.0"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.x.x",
+        "@babel/preset-env": "^7.x.x",
+        "jest": "^29.7.0",
+        "mongodb-memory-server": "^9.1.1",
+        "nodemon": "^3.0.0",
+        "supertest": "^6.0.0"
+    }
+}

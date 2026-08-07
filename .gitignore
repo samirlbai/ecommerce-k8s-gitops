@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Environment files - never commit real secrets
+.env
+.env.*
+!.env.example
+
+# Test/coverage/report artifacts
+coverage/
+test-results/
+junit.xml
+gl-code-quality-report.json
+*.log
+
+# OS/editor cruft
+.DS_Store
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Misc binaries that should never be committed
+*.deb
