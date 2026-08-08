@@ -1,5 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.js';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 export const register = async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -41,7 +46,7 @@ export const register = async (req, res) => {
   
       const token = jwt.sign(
         { userId: user._id, email: user.email },
-        process.env.JWT_SECRET || 'test_secret',
+        JWT_SECRET,
         { expiresIn: '24h' }
       );
   

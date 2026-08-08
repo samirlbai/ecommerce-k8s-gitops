@@ -13,7 +13,9 @@ export const connectDB = async () => {
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    // Ne pas quitter le processus, mais réessayer
-    setTimeout(connectDB, 5000);
+    // Aligné sur auth-service/order-service : on quitte pour laisser K8s redémarrer le pod (restartPolicy)
+    if (process.env.NODE_ENV !== 'test') {
+      process.exit(1);
+    }
   }
 };

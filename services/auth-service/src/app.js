@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { connectDB } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 
@@ -36,7 +37,11 @@ app.post('/api/auth/register', (req, res) => {
   res.json({ message: 'Utilisateur créé avec succès', token: 'dummy-token' });
 });
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', service: 'auth-service' });
+  const dbConnected = mongoose.connection.readyState === 1;
+  if (!dbConnected) {
+    return res.status(503).json({ status: 'DOWN', service: 'auth-service', db: 'disconnected' });
+  }
+  res.json({ status: 'OK', service: 'auth-service', db: 'connected' });
 });
 app.get('/api/auth/ping', (req, res) => {
   res.json({ message: 'Auth service is reachable' });

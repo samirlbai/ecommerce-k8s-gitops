@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { connectDB } from './config/database.js';
 import productRoutes from './routes/productRoutes.js';
 import cartRoutes from './routes/cartRoutes.js';
@@ -27,7 +28,11 @@ app.use('/api/cart', cartRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', service: 'product-service' });
+  const dbConnected = mongoose.connection.readyState === 1;
+  if (!dbConnected) {
+    return res.status(503).json({ status: 'DOWN', service: 'product-service', db: 'disconnected' });
+  }
+  res.json({ status: 'OK', service: 'product-service', db: 'connected' });
 });
 
 if (process.env.NODE_ENV !== 'test') {
