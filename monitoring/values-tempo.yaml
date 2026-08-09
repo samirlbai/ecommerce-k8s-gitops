@@ -1,0 +1,9 @@
+tempo:
+  retention: 48h
+
+persistence:
+  enabled: true
+  size: 3Gi
+
+serviceMonitor:
+  enabled: false
