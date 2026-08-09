@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/samirlbai/frontend:1024688
+          image: ghcr.io/samirlbai/frontend:e83c77e
           ports:
             - containerPort: 8080
           readinessProbe:
