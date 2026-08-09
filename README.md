@@ -99,6 +99,35 @@ Le manifest `Application` initial ne précisait pas `directory.recurse: true`. R
 
 Après l'install de kube-prometheus-stack, retour à 0,82 Go libres sur C:. Migration complète du disque virtuel WSL2 de C: vers D: (export/unregister/import), avec vérification de taille avant toute suppression irréversible. Une instabilité post-migration (redémarrages en boucle de k3s, `WaitForBootProcess` en timeout côté WSL2) s'est résolue avec un simple `wsl --shutdown` + relance, sans nécessiter d'exclusion antivirus.
 
+**Preuve de stabilité post-migration** — deux relevés `kubectl get pods -A` séparés de plus de 5 minutes (13 min réelles entre les deux, aucune commande `kubectl apply`/`rollout`/`delete` entre-temps), compteurs `RESTARTS` comparés pod par pod :
+
+| Pod | RESTARTS (relevé 1) | RESTARTS (relevé 2, +13 min) | Nouveau restart ? |
+|---|---|---|---|
+| argocd-application-controller-0 | 22 | 22 | non |
+| argocd-applicationset-controller | 18 | 18 | non |
+| argocd-dex-server | 21 | 21 | non |
+| argocd-notifications-controller | 22 | 22 | non |
+| argocd-redis | 21 | 21 | non |
+| argocd-repo-server | 22 | 22 | non |
+| argocd-server | 22 | 22 | non |
+| auth-service | 18 | 18 | non |
+| frontend | 0 | 0 | non |
+| mongo | 22 | 22 | non |
+| order-service | 19 | 19 | non |
+| product-service | 18 | 18 | non |
+| coredns | 22 | 22 | non |
+| local-path-provisioner | 24 | 24 | non |
+| metrics-server | 24 | 24 | non |
+| svclb-traefik | 44 | 44 | non |
+| traefik | 23 | 23 | non |
+| grafana | 39 | 39 | non |
+| kube-state-metrics | 14 | 14 | non |
+| prometheus-operator | 13 | 13 | non |
+| node-exporter | 15 | 15 | non |
+| prometheus | 24 | 24 | non |
+
+**22/22 pods actifs : compteurs strictement identiques entre les deux relevés.** Les chiffres non nuls proviennent des cycles d'instabilité antérieurs à la stabilisation (§5.1 et la phase immédiatement post-migration) — aucun n'a bougé depuis. Le cluster est confirmé stable sur D:.
+
 ### 5.5 Bug applicatif trouvé par le test E2E : `GET /api/cart` → 301
 
 Le test bout en bout (navigateur headless, voir §6) a révélé que `GET /api/cart` renvoyait un `301 Moved Permanently` au lieu des données du panier, bloquant l'affichage du panier après ajout d'un produit. Cause : `location /api/cart/` dans `nginx.conf` (slash final) ne correspond pas à la requête `GET /api/cart` (sans slash) envoyée par le frontend — incohérence avec `/api/products` et `/api/orders`, écrits sans slash final. Corrigé (`location /api/cart` sans slash), rebuild via CI, redéploiement via ArgoCD, re-testé avec succès (voir captures 03-05).
@@ -136,7 +165,7 @@ Toutes dans [docs/screenshots/](docs/screenshots/).
 
 ## 8. Limites connues / dette assumée
 
-- `product-service` n'a aucune vérification JWT sur ses routes (panier/produits) — hérité du projet source, documenté dans l'audit initial, non corrigé faute de scope (le sujet porte sur l'infrastructure, pas une refonte applicative).
+- **`product-service` : aucune vérification JWT sur les routes panier.** [`cartRoutes.js`](services/product-service/src/routes/cartRoutes.js) lit `userId` directement depuis un header HTTP non signé (`req.headers.userid`), sans passer par un middleware d'authentification — contrairement à `auth-service` et `order-service`, qui vérifient tous deux un JWT valide (`middleware/auth.js`) avant d'exposer leurs routes protégées. N'importe quel appelant peut donc lire/modifier le panier de n'importe quel `userId` en le devinant. C'est une dette héritée du projet source (documentée dans [AUDIT_REUSE.md](AUDIT_REUSE.md)), **assumée comme un choix de scope explicite et non corrigée** : ce projet porte sur l'infrastructure (K8s/GitOps/observabilité), pas sur une refonte applicative du code métier existant.
 - Alertmanager désactivé (hors scope pédagogique de ce projet).
 - Cluster single-node : pas de test de résilience multi-nœud (non applicable à K3s en environnement local WSL2).
 - Rétention Prometheus volontairement courte (1 jour / 500 Mo) pour limiter l'empreinte disque sur l'environnement de développement.
