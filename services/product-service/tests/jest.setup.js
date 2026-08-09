@@ -8,28 +8,24 @@ let mongod;
 
 beforeAll(async () => {
   try {
-    mongod = new MongoMemoryServer({
+    mongod = await MongoMemoryServer.create({
       binary: {
-        version: '4.4.18', // Version compatible sans AVX
+        version: '8.0.4',
         skipMD5: true
       },
       instance: {
-        storageEngine: 'ephemeralForTest'
-      },
-      autoStart: true
+        storageEngine: 'wiredTiger'
+      }
     });
 
-    const uri = await mongod.getConnectionString();
+    const uri = mongod.getUri();
 
     // Vérifier et déconnecter si déjà connecté
     if (mongoose.connection.readyState !== 0) {
       await mongoose.disconnect();
     }
 
-    await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(uri);
   } catch (error) {
     console.error('Error setting up test database:', error);
     throw error;

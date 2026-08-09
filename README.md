@@ -147,7 +147,41 @@ Scénario couvert, sur l'application réellement déployée (via l'Ingress, pas 
 
 Résultat : **succès de bout en bout, 0 erreur console navigateur**, après correction du bug §5.5.
 
-## 7. Captures d'écran
+## 7. Tests unitaires
+
+Les 3 backends ont des suites Jest existantes (héritées du projet source). Elles ne tournaient pas au moment de la reprise du projet — vérifié en les exécutant réellement (`npm test`), pas supposé.
+
+**État initial (avant correction) :**
+
+| Service | Résultat | Cause |
+|---|---|---|
+| `auth-service` | 0/10 — suite ne démarre même pas | `JWT_SECRET environment variable is required` : `tests/setup.js` charge un `.env.test` qui n'existait pas dans le dépôt |
+| `product-service` | 0/3 — process planté (`UnhandledPromiseRejection`) | `Mongod instance closed with code "127"` |
+| `order-service` | 0/9 | `Instance failed to start because a library is missing or cannot be opened: "libcrypto.so.1.1"` |
+
+En creusant la cause réelle du code 127 (`product-service`) avec le binaire `mongod` exécuté directement : même erreur `libcrypto.so.1.1` que les deux autres. **Racine commune aux 3 services** : `mongodb-memory-server` était épinglé sur MongoDB **4.4.18**, compilé contre OpenSSL 1.1 — absent d'Ubuntu 24.04 (WSL2 actuel, et des runners GitHub Actions modernes, donc le problème n'est pas spécifique à cette machine). C'est exactement le risque déjà identifié dans [AUDIT_REUSE.md](AUDIT_REUSE.md) (§6, "MongoDB obsolète") avant même de commencer l'infrastructure — resté non corrigé jusqu'ici.
+
+`product-service` avait un second problème propre : `mongodb-memory-server` y était resté en version `^6.9.6` (contre `^8.12.2` pour auth-service et `^9.1.1` pour order-service — la divergence de versions déjà pointée dans l'audit). Cette version ancienne détecte l'OS hôte comme `ubuntu1804` (table de détection obsolète, ne connaît pas Ubuntu 24.04), et aucune version récente de MongoDB n'est publiée pour cette distro — téléchargement en 403 quelle que soit la version demandée.
+
+**Corrections appliquées (pas de contournement local, portable pour CI) :**
+
+1. `.env.test` créés pour `auth-service`/`order-service` (`JWT_SECRET` factice, valeur de test uniquement) — exception explicite ajoutée au `.gitignore` (`!.env.test`) pour que ce fichier soit versionné, sinon la suite échoue chez quiconque clone le dépôt
+2. MongoDB **4.4.18 → 8.0.4** (OpenSSL 3, plus de dépendance à `libcrypto.so.1.1`) dans les 3 services
+3. `product-service` : `mongodb-memory-server` mis à jour `^6.9.6 → ^11.2.0`, API modernisée (`MongoMemoryServer.create()` / `.getUri()` au lieu du constructeur `new MongoMemoryServer()` déprécié)
+4. `product-service` : `storageEngine: 'ephemeralForTest'` (retiré de MongoDB depuis plusieurs versions majeures) remplacé par `wiredTiger`, comme les deux autres services
+
+**Résultat après correction, vérifié par exécution réelle :**
+
+| Service | Résultat |
+|---|---|
+| `auth-service` | **10/10 ✓** |
+| `product-service` | **3/3 ✓** |
+| `order-service` | **9/9 ✓** |
+| **Total** | **22/22 ✓** |
+
+Limite assumée et non corrigée : la couverture de `product-service` reste faible (3 tests seulement, contre 10 et 9 pour les deux autres) — déjà signalé dans l'audit initial, pas dans le scope de ce projet infrastructure. Les tests ne sont par ailleurs **pas encore intégrés au pipeline CI** ([.github/workflows/build-push.yml](.github/workflows/build-push.yml) ne fait que build+push, aucune étape `npm test`) — ils passent en local, vérifié manuellement, mais rien ne bloque aujourd'hui un merge qui casserait un test.
+
+## 8. Captures d'écran
 
 Toutes dans [docs/screenshots/](docs/screenshots/).
 
@@ -163,7 +197,7 @@ Toutes dans [docs/screenshots/](docs/screenshots/).
 | 08 | `08-grafana-dashboards-list.png` | Grafana — liste des 28 dashboards par défaut |
 | 09 | `09-grafana-cluster-dashboard.png` | Grafana — dashboard cluster, métriques CPU/mémoire réelles par namespace |
 
-## 8. Limites connues / dette assumée
+## 9. Limites connues / dette assumée
 
 - **`product-service` : aucune vérification JWT sur les routes panier.** [`cartRoutes.js`](services/product-service/src/routes/cartRoutes.js) lit `userId` directement depuis un header HTTP non signé (`req.headers.userid`), sans passer par un middleware d'authentification — contrairement à `auth-service` et `order-service`, qui vérifient tous deux un JWT valide (`middleware/auth.js`) avant d'exposer leurs routes protégées. N'importe quel appelant peut donc lire/modifier le panier de n'importe quel `userId` en le devinant. C'est une dette héritée du projet source (documentée dans [AUDIT_REUSE.md](AUDIT_REUSE.md)), **assumée comme un choix de scope explicite et non corrigée** : ce projet porte sur l'infrastructure (K8s/GitOps/observabilité), pas sur une refonte applicative du code métier existant.
 - Alertmanager désactivé (hors scope pédagogique de ce projet).

@@ -10,6 +10,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.test
 
 # Test/coverage/report artifacts
 coverage/
