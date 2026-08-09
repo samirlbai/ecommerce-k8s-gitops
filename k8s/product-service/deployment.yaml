@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: product-service
-          image: ghcr.io/samirlbai/product-service:1024688
+          image: ghcr.io/samirlbai/product-service:142340d
           ports:
             - containerPort: 3000
           env:

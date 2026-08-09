@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: ghcr.io/samirlbai/auth-service:1024688
+          image: ghcr.io/samirlbai/auth-service:142340d
           ports:
             - containerPort: 3001
           env:
