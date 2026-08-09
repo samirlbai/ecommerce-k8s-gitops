@@ -6,6 +6,14 @@ Migration d'une application e-commerce (Vue 3 + 3 microservices Node/Express + M
 
 Repo GitOps : https://github.com/samirlbai/ecommerce-k8s-gitops
 
+## Choix de projet actés
+
+Trois écarts par rapport à un cadrage par défaut, validés oralement (hors historique git, donc documentés ici explicitement) :
+
+- **Réutilisation de l'application e-commerce existante** plutôt qu'un développement from scratch — validée oralement. Le code applicatif source a été audité séparément avant reprise (voir [AUDIT_REUSE.md](AUDIT_REUSE.md)) ; l'objet réel de ce projet est l'infrastructure (K8s/GitOps/observabilité), pas la réécriture applicative.
+- **GitHub / GitHub Actions au lieu de GitLab / GitLab CI** — validé oralement. Outillage déjà maîtrisé ; le pipeline CI (tests, build, push d'images) est implémenté de façon équivalente sur GitHub Actions ([.github/workflows/build-push.yml](.github/workflows/build-push.yml)).
+- **K3s au lieu de Minikube** — choix assumé, pas de validation orale spécifique requise. K3s donne un control-plane plus proche d'un déploiement réel (composants systemd natifs, LoadBalancer intégré via ServiceLB) au prix d'un setup manuel plus complet — voir §5 pour les incidents concrets que ce choix a occasionnés (et qui n'auraient probablement pas les mêmes contours sous Minikube).
+
 ---
 
 ## 1. Architecture
@@ -196,6 +204,8 @@ Toutes dans [docs/screenshots/](docs/screenshots/).
 | 07 | `07-argocd-app-detail.png` | ArgoCD — détail `ecommerce`, Synced/Healthy, arbre des 12 ressources gérées |
 | 08 | `08-grafana-dashboards-list.png` | Grafana — liste des 28 dashboards par défaut |
 | 09 | `09-grafana-cluster-dashboard.png` | Grafana — dashboard cluster, métriques CPU/mémoire réelles par namespace |
+| 10 | `10-grafana-explore-loki-product-service.png` | Grafana Explore, datasource Loki — logs réels de `product-service` (`{namespace="ecommerce", container="product-service"}`) : `App starting with NODE_ENV=production`, `Product service running on port 3000`, `MongoDB Connected: mongo` |
+| 11 | `11-grafana-explore-tempo-trace.png` | Grafana Explore, datasource Tempo — trace distribuée réelle `order-service → product-service` (POST /api/orders, 67.78ms, 2 services, hiérarchie complète des spans y compris les requêtes MongoDB de chaque côté) |
 
 ## 9. Limites connues / dette assumée
 
