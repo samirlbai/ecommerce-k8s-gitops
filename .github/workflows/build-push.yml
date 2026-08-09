@@ -10,7 +10,31 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth-service, product-service, order-service]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies (npm ci)
+        working-directory: services/${{ matrix.service }}
+        run: npm ci
+
+      - name: Run tests (npm test)
+        working-directory: services/${{ matrix.service }}
+        run: npm test
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
