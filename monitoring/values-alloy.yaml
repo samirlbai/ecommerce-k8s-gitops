@@ -1,0 +1,53 @@
+alloy:
+  configMap:
+    create: true
+    content: |
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      discovery.relabel "filtered" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex         = "ecommerce|argocd|monitoring"
+          action        = "keep"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+      }
+
+      loki.source.kubernetes "pods_logs" {
+        targets    = discovery.relabel.filtered.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+controller:
+  type: daemonset
